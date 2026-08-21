@@ -85,6 +85,9 @@ The setup helper can discover existing installations and can assist with install
 
 `setup.bat` invokes PowerShell with `-ExecutionPolicy Bypass` **for that process only**; it does not permanently alter the user's Windows execution policy.
 
+> [!WARNING]
+> **Windows language and console encoding.** Italian UI labels are display-only and do not affect command execution on English, French, German or other Windows language editions. However, output produced by external command-line tools is decoded using the active Windows locale. On systems that use non-Western alphabets or different code pages, console and diagnostic logs may contain garbled characters or, in edge cases, decoding errors. Use a UTF-8-capable terminal and test representative Unicode paths before production processing.
+
 ## Project state
 
 Checkpoints are stored inside the project folder:
