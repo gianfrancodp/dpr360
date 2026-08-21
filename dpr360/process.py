@@ -1,7 +1,23 @@
 from __future__ import annotations
+from collections.abc import Mapping
 from dataclasses import dataclass
-import queue, subprocess, threading, time
+import os, queue, subprocess, threading, time
 from typing import Callable
+
+POSIX_LOCALE_VARIABLES = ("LANG", "LC_ALL", "LC_CTYPE")
+
+
+def external_process_env(
+    environment: Mapping[str, str] | None = None,
+    platform: str | None = None,
+) -> dict[str, str]:
+    env = dict(os.environ if environment is None else environment)
+    if (platform or os.name) == "nt":
+        # Unix-style locale variables injected by some shells are not
+        # understood by Windows Perl builds such as ExifTool's executable.
+        for name in POSIX_LOCALE_VARIABLES:
+            env.pop(name, None)
+    return env
 
 @dataclass
 class ProcessResult:
@@ -27,7 +43,7 @@ def run_process(
     started = time.time()
     proc = subprocess.Popen(
         [str(x) for x in args], cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, bufsize=1, errors="replace", shell=False,
+        text=True, bufsize=1, errors="replace", shell=False, env=external_process_env(),
     )
     q = queue.Queue()
     threads = [

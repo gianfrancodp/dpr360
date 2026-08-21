@@ -4,6 +4,7 @@ import os, re, shutil, subprocess, tempfile, zipfile
 from urllib.parse import urljoin, urlparse
 from uuid import uuid4
 import requests
+from dpr360.process import external_process_env
 
 HUGIN_TOOLS = ["pto_gen", "cpfind", "cpclean", "autooptimiser", "pano_modify", "nona", "enblend"]
 EXIFTOOL_DOWNLOAD_LIMIT = 128 * 1024 * 1024
@@ -74,7 +75,14 @@ def detect_tools(project_root: Path, cfg: dict) -> dict[str, str]:
     return result
 
 def run_simple(args, timeout=900):
-    return subprocess.run([str(x) for x in args], capture_output=True, text=True, timeout=timeout, shell=False)
+    return subprocess.run(
+        [str(x) for x in args],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        shell=False,
+        env=external_process_env(),
+    )
 
 def test_exiftool(path: str):
     if not path or not Path(path).exists(): return False, "missing"
