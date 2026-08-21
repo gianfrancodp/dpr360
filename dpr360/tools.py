@@ -1,9 +1,17 @@
 from __future__ import annotations
 from pathlib import Path
 import os, re, shutil, subprocess, tempfile, zipfile
+from urllib.parse import urljoin, urlparse
+from uuid import uuid4
 import requests
 
 HUGIN_TOOLS = ["pto_gen", "cpfind", "cpclean", "autooptimiser", "pano_modify", "nona", "enblend"]
+EXIFTOOL_DOWNLOAD_LIMIT = 128 * 1024 * 1024
+EXIFTOOL_WINDOWS_ARCHIVE = re.compile(
+    r"(?:^|/)exiftool-(?P<version>\d+(?:\.\d+)*)_64\.zip(?:/download)?/?$",
+    flags=re.I,
+)
+EXIFTOOL_DOWNLOAD_HOSTS = {"exiftool.org", "www.exiftool.org", "sourceforge.net", "www.sourceforge.net"}
 
 def _existing(path: str | Path | None):
     if path and Path(path).is_file(): return Path(path)
@@ -73,48 +81,109 @@ def test_exiftool(path: str):
     r = run_simple([path, "-ver"], 60)
     return r.returncode == 0, (r.stdout or r.stderr).strip()
 
+def _find_exiftool_windows_url(page_text: str, page_url: str) -> str:
+    candidates = []
+    for href in re.findall(r'href=["\']([^"\']+)["\']', page_text, flags=re.I):
+        url = urljoin(page_url, href)
+        parsed = urlparse(url)
+        if parsed.scheme.lower() != "https" or (parsed.hostname or "").lower() not in EXIFTOOL_DOWNLOAD_HOSTS:
+            continue
+        match = EXIFTOOL_WINDOWS_ARCHIVE.search(parsed.path)
+        if not match:
+            continue
+        version = tuple(int(part) for part in match.group("version").split("."))
+        candidates.append((version, url))
+    if not candidates:
+        raise RuntimeError("Impossibile individuare lo ZIP Windows 64-bit di ExifTool nella pagina ufficiale.")
+    return max(candidates, key=lambda item: item[0])[1]
+
+def _safe_extract_zip(archive: zipfile.ZipFile, destination: Path) -> None:
+    root = destination.resolve()
+    for member in archive.infolist():
+        member_path = (root / member.filename).resolve()
+        if member_path != root and root not in member_path.parents:
+            raise RuntimeError(f"Percorso non sicuro nell'archivio ExifTool: {member.filename}")
+    archive.extractall(root)
+
+def _download_exiftool_archive(url: str, destination: Path) -> None:
+    downloaded = 0
+    with requests.get(url, timeout=(30, 120), stream=True, headers={"User-Agent": "DPR360"}) as response:
+        response.raise_for_status()
+        content_length = response.headers.get("Content-Length")
+        if content_length and int(content_length) > EXIFTOOL_DOWNLOAD_LIMIT:
+            raise RuntimeError("Il pacchetto ExifTool supera la dimensione massima consentita.")
+        with destination.open("wb") as output:
+            for chunk in response.iter_content(1024 * 1024):
+                if not chunk:
+                    continue
+                downloaded += len(chunk)
+                if downloaded > EXIFTOOL_DOWNLOAD_LIMIT:
+                    raise RuntimeError("Il pacchetto ExifTool supera la dimensione massima consentita.")
+                output.write(chunk)
+    if not downloaded or not zipfile.is_zipfile(destination):
+        raise RuntimeError("Il download ExifTool non è un archivio ZIP valido.")
+
+
 def install_exiftool_official(project_root: Path, logger=None) -> str:
     if logger: logger.event("install_attempt", tool="exiftool", method="official_portable")
-    page_url = "https://exiftool.org/"
-    page = requests.get(page_url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
-    page.raise_for_status()
-    candidates = re.findall(r'href=["\']([^"\']*exiftool[^"\']*\.zip)["\']', page.text, flags=re.I)
-    if not candidates:
-        raise RuntimeError("Impossibile individuare lo ZIP Windows di ExifTool nella pagina ufficiale.")
-    candidates = sorted(set(candidates), key=lambda u: ("64" not in u.lower(), "win" not in u.lower(), u))
-    href = candidates[0]
-    if href.startswith("http"): url = href
-    elif href.startswith("/"): url = "https://exiftool.org" + href
-    else: url = "https://exiftool.org/" + href
+    try:
+        page_url = "https://exiftool.org/"
+        page = requests.get(page_url, timeout=30, headers={"User-Agent": "DPR360"})
+        page.raise_for_status()
+        url = _find_exiftool_windows_url(page.text, page_url)
 
-    with tempfile.TemporaryDirectory() as td:
-        td = Path(td); zpath = td / "exiftool.zip"; extracted = td / "extracted"; extracted.mkdir()
-        with requests.get(url, timeout=90, stream=True, headers={"User-Agent": "Mozilla/5.0"}) as r:
-            r.raise_for_status()
-            with zpath.open("wb") as f:
-                for chunk in r.iter_content(1024*1024):
-                    if chunk: f.write(chunk)
-        with zipfile.ZipFile(zpath) as z: z.extractall(extracted)
-        target = project_root / "tools" / "exiftool"
-        if target.exists(): shutil.rmtree(target)
-        target.mkdir(parents=True)
-        # flatten a single wrapper directory, otherwise preserve payload
-        children = list(extracted.iterdir())
-        source_root = children[0] if len(children) == 1 and children[0].is_dir() else extracted
-        for child in source_root.iterdir():
-            dst = target / child.name
-            if child.is_dir(): shutil.copytree(child, dst)
-            else: shutil.copy2(child, dst)
-        exe = next((p for p in target.rglob("*.exe") if p.name.lower().startswith("exiftool")), None)
-        if not exe: raise RuntimeError("exiftool(-k).exe non trovato nel pacchetto scaricato.")
+        tools_root = project_root / "tools"
+        tools_root.mkdir(parents=True, exist_ok=True)
+        target = tools_root / "exiftool"
+        with tempfile.TemporaryDirectory(prefix=".exiftool-staging-", dir=tools_root) as td:
+            staging = Path(td)
+            zpath = staging / "exiftool.zip"
+            extracted = staging / "extracted"
+            install_root = staging / "install"
+            extracted.mkdir()
+            install_root.mkdir()
+            _download_exiftool_archive(url, zpath)
+            with zipfile.ZipFile(zpath) as archive:
+                _safe_extract_zip(archive, extracted)
+
+            children = list(extracted.iterdir())
+            source_root = children[0] if len(children) == 1 and children[0].is_dir() else extracted
+            for child in source_root.iterdir():
+                destination = install_root / child.name
+                if child.is_dir(): shutil.copytree(child, destination)
+                else: shutil.copy2(child, destination)
+
+            exe = next((p for p in install_root.rglob("*.exe") if p.name.lower().startswith("exiftool")), None)
+            if not exe:
+                raise RuntimeError("exiftool(-k).exe non trovato nel pacchetto scaricato.")
+            if not (install_root / "exiftool_files").is_dir():
+                raise RuntimeError("Cartella exiftool_files non trovata nel pacchetto scaricato.")
+            staged_exe = install_root / "exiftool.exe"
+            if exe.resolve() != staged_exe.resolve():
+                shutil.move(str(exe), str(staged_exe))
+
+            ok, message = test_exiftool(str(staged_exe))
+            if not ok:
+                raise RuntimeError(f"Test ExifTool fallito dopo l'installazione: {message}")
+
+            backup = tools_root / f".exiftool-backup-{uuid4().hex}"
+            try:
+                if target.exists(): target.rename(backup)
+                install_root.rename(target)
+            except Exception:
+                if backup.exists():
+                    if target.exists(): shutil.rmtree(target)
+                    backup.rename(target)
+                raise
+            else:
+                if backup.exists(): shutil.rmtree(backup)
+
         final = target / "exiftool.exe"
-        if exe.resolve() != final.resolve():
-            if final.exists(): final.unlink()
-            shutil.move(str(exe), str(final))
-    ok, msg = test_exiftool(str(final))
-    if logger: logger.event("install_result", tool="exiftool", ok=ok, message=msg)
-    if not ok: raise RuntimeError(f"Test ExifTool fallito dopo l'installazione: {msg}")
-    return str(final)
+        if logger: logger.event("install_result", tool="exiftool", ok=True, message=message)
+        return str(final)
+    except Exception as exc:
+        if logger: logger.event("install_result", tool="exiftool", ok=False, message=str(exc))
+        raise
 
 def install_winget(package_id: str = "", name: str = "", logger=None, tool=""):
     if not shutil.which("winget"): return False, "WinGet non disponibile"

@@ -13,7 +13,7 @@ authors = [
   { name = "Gianfranco Di Pietro" }
 ]
 dependencies = [
-  "streamlit>=1.36",
+  "streamlit>=1.48,<2",
   "requests>=2.31",
   "PyYAML>=6.0",
   "Pillow>=10.0",

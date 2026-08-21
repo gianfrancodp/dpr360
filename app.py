@@ -78,7 +78,7 @@ def execute_pipeline(mode="all",single_step=None):
             st.success(result.message)
     else:st.error(f"STOP · {result.name} · exit code {result.returncode} · {result.message}")
     overall.progress(runner.overall_fraction(),text=f"Pipeline · {runner.overall_fraction()*100:.1f}%")
-    st.dataframe(state_rows(runner),use_container_width=True,hide_index=True)
+    st.dataframe(state_rows(runner), width="stretch", hide_index=True)
     if result.details:st.json(result.details)
 
 project_tab,pipeline_tab,tools_tab,smoke_tab,logs_tab,guide_tab,about_tab=st.tabs(["Progetto","Pipeline","Tool Windows","Smoke test","Log","Guida","About"])
@@ -88,14 +88,14 @@ with project_tab:
     c1,c2=st.columns(2)
     with c1:
         st.markdown("**Cartella sorgente DNG**")
-        if st.button("Apri Esplora file · DNG",use_container_width=True):
+        if st.button("Apri Esplora file · DNG", width="stretch"):
             chosen=choose_directory(st.session_state.source_dir)
             logger.event("ui_picker",kind="source_dir",selected=bool(chosen))
             if chosen:st.session_state.source_dir=chosen;st.rerun()
         st.session_state.source_dir=st.text_input("Percorso sorgente (fallback)",value=st.session_state.source_dir)
     with c2:
         st.markdown("**Cartella progetto/output**")
-        if st.button("Apri Esplora file · progetto",use_container_width=True):
+        if st.button("Apri Esplora file · progetto", width="stretch"):
             chosen=choose_directory(st.session_state.project_dir)
             logger.event("ui_picker",kind="project_dir",selected=bool(chosen))
             if chosen:st.session_state.project_dir=chosen;st.rerun()
@@ -104,7 +104,7 @@ with project_tab:
         dngs=list_dngs(Path(st.session_state.source_dir));st.metric("DNG trovati",len(dngs))
         expected=cfg.get("pipeline",{}).get("expected_dng_count",33)
         if len(dngs)!=expected:st.warning(f"Attesi {expected} DNG, trovati {len(dngs)}. Nessun file viene duplicato dalla scansione case-insensitive.")
-        st.dataframe({"File":[p.name for p in dngs]},use_container_width=True,hide_index=True)
+        st.dataframe({"File":[p.name for p in dngs]}, width="stretch", hide_index=True)
 
 with pipeline_tab:
     st.subheader("Pipeline")
@@ -112,16 +112,16 @@ with pipeline_tab:
         runner,ctx,tools=make_runner();missing=tools_ready(tools)
         if missing:st.error("Tool mancanti: "+", ".join(missing))
         else:st.success("Toolchain pronta")
-        st.dataframe(state_rows(runner),use_container_width=True,hide_index=True)
+        st.dataframe(state_rows(runner), width="stretch", hide_index=True)
         st.progress(runner.overall_fraction(),text=f"Avanzamento salvato · {runner.overall_fraction()*100:.1f}%")
         b1,b2,b3=st.columns(3)
-        if b1.button("▶ RUN ALL",type="primary",use_container_width=True):logger.event("ui_click",control="run_all");execute_pipeline("all")
-        if b2.button("↻ RESUME",use_container_width=True):logger.event("ui_click",control="resume");execute_pipeline("resume")
-        if b3.button("Reset checkpoint",use_container_width=True):runner.reset();logger.event("ui_click",control="reset_state");st.rerun()
+        if b1.button("▶ RUN ALL", type="primary", width="stretch"):logger.event("ui_click",control="run_all");execute_pipeline("all")
+        if b2.button("↻ RESUME", width="stretch"):logger.event("ui_click",control="resume");execute_pipeline("resume")
+        if b3.button("Reset checkpoint", width="stretch"):runner.reset();logger.event("ui_click",control="reset_state");st.rerun()
         with st.expander("Esegui un singolo step"):
             for s in ALL_STEPS:
                 c1,c2=st.columns([3,1]);c1.write(f"{s.label} (`{s.name}`)")
-                if c2.button("Esegui",key=f"run_{s.name}",use_container_width=True):execute_pipeline("single",s.name)
+                if c2.button("Esegui", key=f"run_{s.name}", width="stretch"):execute_pipeline("single",s.name)
         last=st.session_state.get("last_pipeline_result")
         if last:
             st.markdown("#### Ultimo risultato");st.json(last)
@@ -130,7 +130,7 @@ with pipeline_tab:
 with tools_tab:
     st.subheader("Dipendenze Windows")
     tools=detect_tools(ROOT,cfg)
-    st.dataframe([{"Tool":k,"Percorso":v or "MANCANTE"} for k,v in tools.items()],use_container_width=True,hide_index=True)
+    st.dataframe([{"Tool":k,"Percorso":v or "MANCANTE"} for k,v in tools.items()], width="stretch", hide_index=True)
     if st.button("Rileva di nuovo"):st.rerun()
     c1,c2,c3=st.columns(3)
     if not tools.get("exiftool") and c1.button("Installa ExifTool portable"):
