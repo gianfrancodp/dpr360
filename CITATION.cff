@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use DPR360 in research or technical work, please cite this software."
+title: "DronePanoRAW 360 (DPR360)"
+type: software
+authors:
+  - family-names: "Di Pietro"
+    given-names: "Gianfranco"
+version: "3.2.1"
+date-released: "2026-08-21"
+license: "GPL-3.0-or-later"
+repository-code: "https://github.com/gianfrancodp/dpr360"
+url: "https://gianfrancodp.github.io"
+keywords:
+  - drone photography
+  - panorama
+  - 360 photography
+  - RAW
+  - DNG
+  - equirectangular

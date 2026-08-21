@@ -1,0 +1,37 @@
+# Local/private project notes — intentionally shipped in the handoff ZIP but not tracked
+TODO_LOCAL.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+.venv-*/
+venv/
+
+# Build/distribution
+build/
+dist/
+*.spec.bak
+*.zip
+*.sha256
+
+# DPR360 local runtime
+logs/
+outputs/
+tools/
+config.local.yaml
+*.jsonl
+.dpr360/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini

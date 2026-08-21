@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Support guidance
+    url: https://github.com/gianfrancodp/dpr360/blob/main/SUPPORT.md
+    about: Read this before sharing diagnostic information.

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dpr360"
+version = "3.2.1"
+description = "Free and open-source RAW-to-360 workflow for drone Panorama Mode photography"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+  { name = "Gianfranco Di Pietro" }
+]
+dependencies = [
+  "streamlit>=1.36",
+  "requests>=2.31",
+  "PyYAML>=6.0",
+  "Pillow>=10.0",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Win32 (MS Windows)",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Graphics",
+]
+
+[project.urls]
+Homepage = "https://gianfrancodp.github.io"
+Repository = "https://github.com/gianfrancodp/dpr360"
+Issues = "https://github.com/gianfrancodp/dpr360/issues"
+
+[tool.setuptools.packages.find]
+include = ["dpr360*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

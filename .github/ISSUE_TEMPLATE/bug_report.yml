@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible DPR360 problem
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. **Do not upload original photos, GPS coordinates, serial numbers, usernames, local paths or unsanitized logs.**
+  - type: input
+    id: version
+    attributes:
+      label: DPR360 version
+      placeholder: "3.2.1"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+  - type: input
+    id: capture
+    attributes:
+      label: Drone and panorama capture mode
+      placeholder: "DJI Air 3 — Sphere / 360 panorama"
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include the pipeline step and return code when available.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I reviewed the report and attachments for private/sensitive information.
+          required: true

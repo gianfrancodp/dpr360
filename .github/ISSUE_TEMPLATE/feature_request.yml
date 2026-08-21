@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an improvement for DPR360
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Photographer problem
+      description: What real workflow problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: input
+    id: capture
+    attributes:
+      label: Relevant drone / panorama mode
+      placeholder: "Optional"
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Quality, performance or privacy trade-offs

@@ -1,0 +1,37 @@
+app:
+  version: 3.2.1
+  title: DronePanoRAW 360
+logging:
+  enabled: true
+  log_dir: ./logs
+  include_paths: false
+  include_command_stdout: false
+  include_command_stderr: true
+  max_command_log_chars: 12000
+  diagnostic_mode: false
+  include_sensitive_metadata: false
+pipeline:
+  expected_dng_count: 33
+  stop_on_error: true
+  raw_profile: ''
+  coverage_alpha_threshold: 1
+  coverage_strip_height: 128
+  enblend_verbose: 1
+  steps:
+  - metadata
+  - raw_conversion
+  - pto_gen
+  - cpfind
+  - cpclean
+  - optimise
+  - panorama_setup
+  - pto_validation
+  - remap
+  - blend
+  - final_validation
+tools:
+  exiftool: ''
+  rawtherapee: ''
+  hugin_bin: ''
+winget:
+  rawtherapee_id: RawTherapee.RawTherapee
