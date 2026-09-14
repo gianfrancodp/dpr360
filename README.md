@@ -10,7 +10,7 @@
 
 Free and open source. Local-first. **Designed by drone photographers, for drone photographers.**
 
-DPR360 is a Windows-first RAW-to-360 workflow for reconstructing high-resolution spherical panoramas from the original RAW frames captured by a drone panorama sequence. The project prioritizes a 16-bit technical master, deterministic geometry checks, resumable processing, transparent diagnostics, and local processing.
+DPR360 is a Windows-first workflow for reconstructing high-resolution spherical panoramas from the original DNG or individual JPEG frames captured by a drone panorama sequence. The project prioritizes RAW quality when available, deterministic geometry checks, resumable processing, transparent diagnostics, and local processing.
 
 > **Project status: alpha.** Version 3.2.1 is the first repository-ready DPR360 codebase and preserves the previously validated Hugin-based pipeline. The current default geometry backend still uses Hugin control points and optimisation. Metadata-driven Auto-Geometry is not yet part of this release.
 
@@ -18,11 +18,12 @@ DPR360 is a Windows-first RAW-to-360 workflow for reconstructing high-resolution
 
 Drone panorama modes often create a convenient stitched JPEG while also saving the individual RAW/DNG frames. DPR360 is built for photographers who want to reconstruct the sphere from those original frames instead of giving up RAW latitude and high-bit-depth output.
 
-The current validated workflow targets a **33-DNG DJI Air 3 spherical panorama dataset**, while the codebase is intentionally structured for additional supported panorama capture profiles in future releases.
+The validated RAW workflow targets a **33-DNG DJI Air 3 spherical panorama dataset**. Individual JPG/JPEG frame sets are also accepted and await broader camera testing.
 
 ## Current features
 
 - RAW/DNG → 16-bit TIFF development through RawTherapee.
+- Individual JPG/JPEG frames → isolated lossless working TIFFs.
 - Hugin project generation and control-point workflow.
 - Full equirectangular **360° × 180°** normalization.
 - Exact **2:1** full-canvas handling propagated to Enblend.
@@ -39,9 +40,9 @@ The current validated workflow targets a **33-DNG DJI Air 3 spherical panorama d
 ## Processing pipeline
 
 ```text
-DNG metadata
+DNG/JPEG metadata
     ↓
-RAW → TIFF 16-bit
+Input preparation → working TIFF
     ↓
 pto_gen
     ↓
@@ -79,9 +80,11 @@ The setup helper can discover existing installations and can assist with install
 1. Download or clone the repository.
 2. Run `setup.bat`.
 3. Run `run_dpr360.bat`.
-4. Select the source DNG folder and a project/output folder.
+4. Select a source folder containing DNG files or individual JPG/JPEG panorama frames, plus a project/output folder.
 5. Run the smoke test if this is the first installation.
 6. Run the pipeline.
+
+When a source folder contains both DNG and JPEG files, DPR360 selects DNG and ignores the associated JPEGs to preserve the RAW-first workflow. JPEG-derived working TIFFs remain based on 8-bit compressed source data; conversion does not restore RAW dynamic range, highlight recovery, or white-balance latitude.
 
 `setup.bat` invokes PowerShell with `-ExecutionPolicy Bypass` **for that process only**; it does not permanently alter the user's Windows execution policy.
 
@@ -96,7 +99,7 @@ Checkpoints are stored inside the project folder:
 <project>/.dpr360/state.json
 ```
 
-A successful step with warnings is treated as a completed prerequisite and remains visible as `completed_with_warnings`.
+A successful step with warnings is treated as a completed prerequisite and remains visible as `completed_with_warnings`. The checkpoint stores the detected input format, and JPEG working files are isolated from legacy DNG intermediates.
 
 ## Privacy
 

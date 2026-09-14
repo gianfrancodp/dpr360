@@ -1,12 +1,14 @@
 from dpr360.models import StepResult
 from dpr360.pipeline.base import BaseStep
-from dpr360.scanning import list_tiffs
+from dpr360.scanning import discover_source_set
+from dpr360.pipeline.steps.raw_conversion import list_working_tiffs
 class RemapStep(BaseStep):
     name="remap";label="Nona · remapping";weight=0.25;prerequisites=("pto_validation",)
     def run(self,ctx):
         remap=ctx.hugin_dir/"remap";remap.mkdir(parents=True,exist_ok=True)
         for p in remap.glob("level_*.tif"): p.unlink()
-        expected=len(list_tiffs(ctx.tiff_dir));prefix=remap/"level_";pto=ctx.hugin_dir/"project_360.pto"
+        source=discover_source_set(ctx.source_dir)
+        expected=len(list_working_tiffs(ctx,source));prefix=remap/"level_";pto=ctx.hugin_dir/"project_360.pto"
         ctx.progress(.01,"Avvio remapping")
         def poll():
             n=len(list(remap.glob("level_*.tif")))

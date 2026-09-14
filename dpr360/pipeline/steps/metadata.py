@@ -2,7 +2,7 @@ from __future__ import annotations
 import csv, json
 from dpr360.models import StepResult
 from dpr360.pipeline.base import BaseStep
-from dpr360.scanning import list_dngs
+from dpr360.scanning import discover_source_set
 
 KEYS = [
     "FileName", "DateTimeOriginal", "SubSecTimeOriginal", "ImageWidth", "ImageHeight", "FocalLength",
@@ -12,6 +12,8 @@ KEYS = [
     "CalibratedOpticalCenterY", "DewarpData", "DewarpFlag"
 ]
 
+DJI_ORIENTATION_KEYS = ("GimbalYawDegree", "GimbalPitchDegree", "GimbalRollDegree")
+
 def suffix_value(data, suffix):
     for k, v in data.items():
         if k == suffix or k.endswith(":" + suffix): return v
@@ -20,12 +22,12 @@ def suffix_value(data, suffix):
 class MetadataStep(BaseStep):
     name="metadata"; label="Drone metadata / EXIF"; weight=0.03
     def run(self, ctx):
-        dngs=list_dngs(ctx.source_dir)
-        if not dngs: return StepResult(self.name, False, 2, "Nessun DNG trovato.")
+        source=discover_source_set(ctx.source_dir); frames=list(source.frames)
+        if not frames: return StepResult(self.name, False, 2, "Nessun file DNG/JPG/JPEG trovato.")
         ctx.metadata_dir.mkdir(parents=True, exist_ok=True)
         full=[]; rows=[]
-        for i,p in enumerate(dngs):
-            ctx.progress(i/len(dngs), f"Metadata {i+1}/{len(dngs)} · {p.name}")
+        for i,p in enumerate(frames):
+            ctx.progress(i/len(frames), f"Metadata {i+1}/{len(frames)} · {p.name}")
             r=self.command(ctx,[ctx.tools["exiftool"],"-json","-G1","-a","-s",str(p)],timeout=180)
             if r.returncode != 0:
                 return StepResult(self.name,False,r.returncode,f"ExifTool fallito su {p.name}",stderr=r.stderr)
@@ -40,5 +42,19 @@ class MetadataStep(BaseStep):
             writer=csv.DictWriter(f,fieldnames=KEYS); writer.writeheader(); writer.writerows(rows)
         ctx.progress(1,"Metadata completati")
         models=sorted({str(suffix_value(x,"ProductName") or suffix_value(x,"Model")) for x in full if suffix_value(x,"ProductName") or suffix_value(x,"Model")})
-        ctx.logger.event("metadata_summary", dng_count=len(dngs), camera_models=models, output_files=2)
-        return StepResult(self.name,True,0,f"Estratti metadata da {len(dngs)} DNG.",outputs=[str(full_path),str(csv_path)],details={"dng_count":len(dngs)})
+        warnings=[]
+        if source.input_format == "jpeg":
+            missing_counts={
+                key:sum(suffix_value(item,key) == "" for item in full)
+                for key in DJI_ORIENTATION_KEYS
+            }
+            missing=[f"{key} ({count}/{len(full)} mancanti)" for key,count in missing_counts.items() if count]
+            if missing:
+                warnings.append("Metadata DJI incompleti nei JPEG: " + ", ".join(missing) + ". Hugin procederà tramite control point.")
+        ctx.logger.event("metadata_summary", source_count=len(frames), input_format=source.input_format, camera_models=models, output_files=2)
+        return StepResult(
+            self.name,True,0,f"Estratti metadata da {len(frames)} file {source.input_format.upper()}.",
+            outputs=[str(full_path),str(csv_path)],
+            details={"source_count":len(frames),"input_format":source.input_format},
+            warnings=warnings,
+        )

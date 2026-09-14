@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dpr360.models import ProgressEvent, StepResult
+from dpr360.scanning import discover_source_set
 from dpr360.state import PipelineState
 
 SUCCESS_STATUSES = {"completed", "completed_with_warnings"}
@@ -11,10 +12,13 @@ class PipelineRunner:
         self.by_name = {s.name: s for s in steps}
         self.total_weight = sum(s.weight for s in steps)
         self.state = PipelineState(ctx.project_dir, [s.name for s in steps])
-        if self.state.data.get("source_dir") and self.state.data["source_dir"] != str(ctx.source_dir):
-            self.state.reset(str(ctx.source_dir))
+        source_format = discover_source_set(ctx.source_dir).input_format
+        saved_dir = self.state.data.get("source_dir")
+        saved_format = self.state.data.get("source_format", "")
+        if saved_dir and (saved_dir != str(ctx.source_dir) or saved_format != source_format):
+            self.state.reset(str(ctx.source_dir), source_format)
         elif not self.state.data.get("source_dir"):
-            self.state.set_source(str(ctx.source_dir))
+            self.state.set_source(str(ctx.source_dir), source_format)
         self.ui_progress_callback = None
 
     def _is_success(self, status: str) -> bool:
@@ -103,7 +107,8 @@ class PipelineRunner:
 
     def run_all(self, resume=False):
         if not resume:
-            self.state.reset(str(self.ctx.source_dir))
+            source_format = discover_source_set(self.ctx.source_dir).input_format
+            self.state.reset(str(self.ctx.source_dir), source_format)
 
         self.ctx.logger.event("pipeline_run_all_start", resume=resume)
         results = []
@@ -150,4 +155,5 @@ class PipelineRunner:
         return self._run_one(self.by_name[name])
 
     def reset(self):
-        self.state.reset(str(self.ctx.source_dir))
+        source_format = discover_source_set(self.ctx.source_dir).input_format
+        self.state.reset(str(self.ctx.source_dir), source_format)

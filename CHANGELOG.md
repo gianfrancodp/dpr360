@@ -4,6 +4,13 @@ All notable changes to DPR360 will be documented in this file.
 
 ## Unreleased
 
+### JPEG panorama input
+- Added case-insensitive discovery of individual JPG/JPEG panorama frames.
+- Added lossless working-TIFF preparation with EXIF orientation and available EXIF/ICC preservation.
+- Isolated JPEG intermediates and checkpoints from DNG projects.
+- Added non-blocking warnings for missing DJI orientation metadata and JPEG source limitations.
+- Updated the UI, smoke test, documentation, and automated coverage for JPEG input.
+
 ### Repository preparation / rebrand
 - Project renamed to **DronePanoRAW 360 (DPR360)**.
 - Python package renamed from the development name to `dpr360`.

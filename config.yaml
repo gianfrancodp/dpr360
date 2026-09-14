@@ -11,7 +11,7 @@ logging:
   diagnostic_mode: false
   include_sensitive_metadata: false
 pipeline:
-  expected_dng_count: 33
+  expected_frame_count: 33
   stop_on_error: true
   raw_profile: ''
   coverage_alpha_threshold: 1

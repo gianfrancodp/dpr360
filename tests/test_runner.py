@@ -36,6 +36,21 @@ class TestRunner(unittest.TestCase):
             self.assertEqual(result.returncode,0)
             self.assertEqual(r.state.status('c'),'completed')
 
+    def test_checkpoint_resets_when_input_format_changes(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); src=root/'src-format'; prj=root/'prj-format'; src.mkdir(); prj.mkdir()
+            dng=src/'frame.dng';dng.write_bytes(b'raw')
+            ctx=PipelineContext(src,prj,{}, {}, Logger())
+            first=PipelineRunner(ctx,[A()])
+            first.run_all(False)
+            self.assertEqual(first.state.status('a'),'completed')
+            self.assertEqual(first.state.data['source_format'],'dng')
+
+            dng.unlink();(src/'frame.jpg').write_bytes(b'jpeg')
+            second=PipelineRunner(ctx,[A()])
+            self.assertEqual(second.state.status('a'),'pending')
+            self.assertEqual(second.state.data['source_format'],'jpeg')
+
 
 class W(BaseStep):
     name='w'; label='W'; weight=.1

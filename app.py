@@ -8,7 +8,7 @@ from dpr360.logger import UsageLogger
 from dpr360.models import PipelineContext
 from dpr360.picker import choose_directory, choose_file
 from dpr360.pipeline import PipelineRunner, ALL_STEPS
-from dpr360.scanning import list_dngs
+from dpr360.scanning import discover_source_set
 from dpr360.settings import load_config, save_tool_override
 from dpr360.smoke import smoke_test
 from dpr360.tools import detect_tools, install_exiftool_official, install_winget
@@ -28,11 +28,13 @@ logger.event("app_open",version=__version__)
 st.title("DronePanoRAW 360")
 st.caption("Pano Mode → RAW → 360° · local-first RAW panorama workflow")
 
-for key,default in {"source_dir":"","project_dir":"","smoke_dng":"","chat":[]}.items():
+for key,default in {"source_dir":"","project_dir":"","smoke_source":"","chat":[]}.items():
     st.session_state.setdefault(key,default)
 
-def tools_ready(tools):
-    required=["exiftool","rawtherapee","pto_gen","cpfind","cpclean","autooptimiser","pano_modify","nona","enblend"]
+def tools_ready(tools, input_format=None):
+    required=["exiftool","pto_gen","cpfind","cpclean","autooptimiser","pano_modify","nona","enblend"]
+    if input_format != "jpeg":
+        required.insert(1,"rawtherapee")
     return [x for x in required if not tools.get(x)]
 
 def make_runner():
@@ -47,8 +49,8 @@ def state_rows(runner):
 
 def execute_pipeline(mode="all",single_step=None):
     if not st.session_state.source_dir or not st.session_state.project_dir:
-        st.error("Seleziona prima cartella DNG e cartella progetto.");return
-    runner,ctx,tools=make_runner();missing=tools_ready(tools)
+        st.error("Seleziona prima cartella sorgente e cartella progetto.");return
+    runner,ctx,tools=make_runner();source=discover_source_set(ctx.source_dir);missing=tools_ready(tools,source.input_format)
     if missing: st.error("Tool mancanti: "+", ".join(missing));return
     logs=deque(maxlen=300)
     st.markdown("### Esecuzione")
@@ -87,8 +89,8 @@ with project_tab:
     st.subheader("Input e progetto")
     c1,c2=st.columns(2)
     with c1:
-        st.markdown("**Cartella sorgente DNG**")
-        if st.button("Apri Esplora file · DNG", width="stretch"):
+        st.markdown("**Cartella sorgente DNG o JPEG**")
+        if st.button("Apri Esplora file · sorgente", width="stretch"):
             chosen=choose_directory(st.session_state.source_dir)
             logger.event("ui_picker",kind="source_dir",selected=bool(chosen))
             if chosen:st.session_state.source_dir=chosen;st.rerun()
@@ -101,15 +103,17 @@ with project_tab:
             if chosen:st.session_state.project_dir=chosen;st.rerun()
         st.session_state.project_dir=st.text_input("Percorso progetto (fallback)",value=st.session_state.project_dir)
     if st.session_state.source_dir:
-        dngs=list_dngs(Path(st.session_state.source_dir));st.metric("DNG trovati",len(dngs))
-        expected=cfg.get("pipeline",{}).get("expected_dng_count",33)
-        if len(dngs)!=expected:st.warning(f"Attesi {expected} DNG, trovati {len(dngs)}. Nessun file viene duplicato dalla scansione case-insensitive.")
-        st.dataframe({"File":[p.name for p in dngs]}, width="stretch", hide_index=True)
+        source=discover_source_set(Path(st.session_state.source_dir))
+        st.metric("Fotogrammi sorgente",len(source.frames),delta=source.input_format.upper() if not source.is_empty else "NESSUNO")
+        expected=cfg.get("pipeline",{}).get("expected_frame_count",cfg.get("pipeline",{}).get("expected_dng_count",33))
+        if len(source.frames)!=expected:st.warning(f"Attesi {expected} fotogrammi, trovati {len(source.frames)}. Nessun file viene duplicato dalla scansione case-insensitive.")
+        if source.ignored_jpeg_count:st.info(f"Rilevati DNG: {source.ignored_jpeg_count} JPEG associati vengono ignorati per preservare il flusso RAW.")
+        st.dataframe({"File":[p.name for p in source.frames]}, width="stretch", hide_index=True)
 
 with pipeline_tab:
     st.subheader("Pipeline")
     if st.session_state.source_dir and st.session_state.project_dir:
-        runner,ctx,tools=make_runner();missing=tools_ready(tools)
+        runner,ctx,tools=make_runner();source=discover_source_set(ctx.source_dir);missing=tools_ready(tools,source.input_format)
         if missing:st.error("Tool mancanti: "+", ".join(missing))
         else:st.success("Toolchain pronta")
         st.dataframe(state_rows(runner), width="stretch", hide_index=True)
@@ -150,20 +154,22 @@ with tools_tab:
         if p:save_tool_override(ROOT,"hugin_bin",p);st.rerun()
 
 with smoke_tab:
-    st.subheader("Smoke test su un DNG")
-    if st.button("Seleziona DNG di test…"):
-        p=choose_file(st.session_state.smoke_dng,[("DNG","*.dng;*.DNG"),("All","*.*")]);
-        if p:st.session_state.smoke_dng=p;st.rerun()
-    st.session_state.smoke_dng=st.text_input("DNG (fallback)",value=st.session_state.smoke_dng)
+    st.subheader("Smoke test su un file sorgente")
+    if st.button("Seleziona DNG/JPEG di test…"):
+        p=choose_file(st.session_state.smoke_source,[("DNG/JPEG","*.dng;*.DNG;*.jpg;*.JPG;*.jpeg;*.JPEG"),("All","*.*")]);
+        if p:st.session_state.smoke_source=p;st.rerun()
+    st.session_state.smoke_source=st.text_input("File sorgente (fallback)",value=st.session_state.smoke_source)
     if st.button("Esegui smoke test",type="primary"):
-        tools=detect_tools(ROOT,cfg);need=[x for x in ["exiftool","rawtherapee","pto_gen","nona"] if not tools.get(x)]
+        tools=detect_tools(ROOT,cfg);smoke_path=Path(st.session_state.smoke_source);is_jpeg=smoke_path.suffix.lower() in {".jpg",".jpeg"}
+        required=["exiftool","pto_gen","nona"]+([] if is_jpeg else ["rawtherapee"])
+        need=[x for x in required if not tools.get(x)]
         if need:st.error("Mancano: "+", ".join(need))
-        elif not Path(st.session_state.smoke_dng).exists():st.error("Seleziona un DNG valido.")
+        elif not smoke_path.exists() or smoke_path.suffix.lower() not in {".dng",".jpg",".jpeg"}:st.error("Seleziona un file DNG/JPG/JPEG valido.")
         else:
             lines=deque(maxlen=150)
             with st.expander("Log smoke test",expanded=True):box=st.empty()
             try:
-                smoke_test(Path(st.session_state.smoke_dng),ROOT/"outputs"/"00_smoke_test",tools,logger,lambda x:(lines.append(x),box.code("\n".join(lines))))
+                smoke_test(smoke_path,ROOT/"outputs"/"00_smoke_test",tools,logger,lambda x:(lines.append(x),box.code("\n".join(lines))))
                 st.success("Smoke test superato.")
             except Exception as e:st.error(str(e))
 
@@ -194,7 +200,7 @@ with guide_tab:
         elif "status" in q or "stato" in q:
             if st.session_state.source_dir and st.session_state.project_dir:
                 runner,_,_=make_runner();answer=" · ".join(f"{s.name}: {runner.state.status(s.name)}" for s in ALL_STEPS)
-            else:answer="Seleziona prima sorgente DNG e cartella progetto."
+            else:answer="Seleziona prima la sorgente DNG/JPEG e la cartella progetto."
             st.session_state.chat.append({"role":"assistant","content":answer});st.write(answer)
         else:
             answer="Posso guidarti sulla pipeline. Comandi rapidi: `run all`, `resume`, `status`. Per cambiare input usa la scheda Progetto."

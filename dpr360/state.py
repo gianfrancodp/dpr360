@@ -10,9 +10,10 @@ class PipelineState:
 
     def _new(self):
         return {
-            "schema": 1,
+            "schema": 2,
             "updated_at": None,
             "source_dir": "",
+            "source_format": "",
             "steps": {n: {"status": "pending", "result": None} for n in self.step_names},
         }
 
@@ -32,11 +33,16 @@ class PipelineState:
         self.data["updated_at"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
         self.path.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    def reset(self, source_dir=""):
-        self.data = self._new(); self.data["source_dir"] = source_dir; self.save()
+    def reset(self, source_dir="", source_format=""):
+        self.data = self._new()
+        self.data["source_dir"] = source_dir
+        self.data["source_format"] = source_format
+        self.save()
 
-    def set_source(self, source_dir: str):
-        self.data["source_dir"] = source_dir; self.save()
+    def set_source(self, source_dir: str, source_format: str = ""):
+        self.data["source_dir"] = source_dir
+        self.data["source_format"] = source_format
+        self.save()
 
     def status(self, name): return self.data["steps"].get(name, {}).get("status", "pending")
     def set_running(self, name):
