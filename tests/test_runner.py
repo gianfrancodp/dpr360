@@ -21,6 +21,19 @@ class C(BaseStep):
     def run(self,ctx): return StepResult('c',True,0,'ok')
 
 class TestRunner(unittest.TestCase):
+    def test_resume_invalidates_changed_files_in_same_source_folder(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);src=root/'source';src.mkdir();project=root/'project'
+            frame=src/'frame.jpg';frame.write_bytes(b'first source')
+            ctx=PipelineContext(src,project,{}, {}, Logger())
+            runner=PipelineRunner(ctx,[A(),B()])
+            runner.run_all(False)
+            self.assertEqual(runner.state.status('a'),'completed')
+            frame.write_bytes(b'replacement has different size')
+            runner.run_step('b')
+            self.assertEqual(runner.state.status('a'),'pending')
+            self.assertEqual(runner.state.data['source_manifest'][0][1],frame.stat().st_size)
+
     def test_stop_and_resume(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td); src=root/'src'; prj=root/'prj'; src.mkdir(); prj.mkdir()
@@ -67,5 +80,7 @@ class TestWarningState(unittest.TestCase):
             self.assertEqual(result.returncode,0)
             self.assertEqual(r.state.status('w'),'completed_with_warnings')
             self.assertEqual(r.overall_fraction(),1.0)
+            resumed,_=r.run_all(True)
+            self.assertEqual(resumed.warnings,['w: test warning'])
 
 if __name__=='__main__': unittest.main()

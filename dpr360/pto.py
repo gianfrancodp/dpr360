@@ -61,3 +61,30 @@ def validate_panorama(path: Path, ratio_tolerance=1e-4, hfov_tolerance=0.05) -> 
         "full_canvas_crop": crop == (0, w, 0, h) if crop and w and h else False,
     }
     return {**info, "checks": checks, "valid": all(checks.values())}
+
+
+def control_point_connectivity(path: Path) -> dict:
+    """Report image alignment connectivity separately from canvas geometry."""
+    lines=path.read_text(encoding="utf-8",errors="replace").splitlines()
+    count=sum(line.startswith("i ") for line in lines)
+    parents=list(range(count))
+    def find(index):
+        while parents[index] != index:
+            parents[index]=parents[parents[index]]
+            index=parents[index]
+        return index
+    points=0
+    for line in lines:
+        if not line.startswith("c "):
+            continue
+        n=_num(line,"n",int);other=_num(line,"N",int)
+        if n is None or other is None or not (0 <= n < count and 0 <= other < count):
+            raise ValueError("Invalid control-point image index in PTO.")
+        parents[find(other)]=find(n)
+        points+=1
+    groups={}
+    for index in range(count):
+        groups.setdefault(find(index),[]).append(index)
+    return {"image_count":count,"control_point_count":points,
+            "alignment_connected":count > 0 and len(groups)==1,
+            "alignment_components":list(groups.values())}

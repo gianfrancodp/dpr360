@@ -5,6 +5,10 @@ All notable changes to DPR360 will be documented in this file.
 ## Unreleased
 
 ### JPEG panorama input
+- Rebuilt photographic TIFF metadata with ExifTool to support real nested DJI EXIF without libtiff offset errors; retained exact numeric focal values.
+- Added atomic JPEG preparation, readable-output/source-identity checks, checkpoint manifest invalidation and duplicate-stem rejection.
+- Fixed smoke tests selecting stale TIFFs; added nested-EXIF, orientation, retry and real-data validation coverage.
+- Added a separate warning for disconnected PTO alignment and retained saved warnings on resume; real-data results distinguish canvas geometry from photographic coverage.
 - Added case-insensitive discovery of individual JPG/JPEG panorama frames.
 - Added lossless working-TIFF preparation with EXIF orientation and available EXIF/ICC preservation.
 - Isolated JPEG intermediates and checkpoints from DNG projects.

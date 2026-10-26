@@ -42,6 +42,12 @@ def discover_source_set(folder: Path) -> SourceSet:
         return SourceSet(tuple(jpegs), "jpeg")
     return SourceSet((), "none")
 
+
+def source_manifest(folder: Path):
+    """Checkpoint identity based on the selected filenames, sizes and mtimes."""
+    return [[p.name, p.stat().st_size, p.stat().st_mtime_ns]
+            for p in discover_source_set(folder).frames]
+
 def list_tiffs(folder: Path) -> list[Path]:
     if not folder.exists() or not folder.is_dir():
         return []

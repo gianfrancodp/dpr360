@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dpr360.models import ProgressEvent, StepResult
-from dpr360.scanning import discover_source_set
+from dpr360.scanning import discover_source_set, source_manifest
 from dpr360.state import PipelineState
 
 SUCCESS_STATUSES = {"completed", "completed_with_warnings"}
@@ -12,14 +12,20 @@ class PipelineRunner:
         self.by_name = {s.name: s for s in steps}
         self.total_weight = sum(s.weight for s in steps)
         self.state = PipelineState(ctx.project_dir, [s.name for s in steps])
+        self._sync_source()
+        self.ui_progress_callback = None
+
+    def _sync_source(self):
+        ctx = self.ctx
         source_format = discover_source_set(ctx.source_dir).input_format
+        manifest = source_manifest(ctx.source_dir)
         saved_dir = self.state.data.get("source_dir")
         saved_format = self.state.data.get("source_format", "")
-        if saved_dir and (saved_dir != str(ctx.source_dir) or saved_format != source_format):
-            self.state.reset(str(ctx.source_dir), source_format)
+        if saved_dir and (saved_dir != str(ctx.source_dir) or saved_format != source_format
+                          or self.state.data.get("source_manifest") != manifest):
+            self.state.reset(str(ctx.source_dir), source_format, manifest)
         elif not self.state.data.get("source_dir"):
-            self.state.set_source(str(ctx.source_dir), source_format)
-        self.ui_progress_callback = None
+            self.state.set_source(str(ctx.source_dir), source_format, manifest)
 
     def _is_success(self, status: str) -> bool:
         return status in SUCCESS_STATUSES
@@ -106,9 +112,9 @@ class PipelineRunner:
         return result
 
     def run_all(self, resume=False):
+        self._sync_source()
         if not resume:
-            source_format = discover_source_set(self.ctx.source_dir).input_format
-            self.state.reset(str(self.ctx.source_dir), source_format)
+            self.reset()
 
         self.ctx.logger.event("pipeline_run_all_start", resume=resume)
         results = []
@@ -129,8 +135,9 @@ class PipelineRunner:
                 return result, results
 
         all_warnings = []
-        for r in results:
-            all_warnings.extend([f"{r.name}: {w}" for w in r.warnings])
+        for step in self.steps:
+            saved=self.state.data["steps"][step.name].get("result") or {}
+            all_warnings.extend([f"{step.name}: {w}" for w in saved.get("warnings",[])])
 
         msg = "Pipeline completata."
         if all_warnings:
@@ -152,8 +159,9 @@ class PipelineRunner:
         return ok, results
 
     def run_step(self, name):
+        self._sync_source()
         return self._run_one(self.by_name[name])
 
     def reset(self):
         source_format = discover_source_set(self.ctx.source_dir).input_format
-        self.state.reset(str(self.ctx.source_dir), source_format)
+        self.state.reset(str(self.ctx.source_dir), source_format, source_manifest(self.ctx.source_dir))
