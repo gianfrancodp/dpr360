@@ -17,6 +17,9 @@ dependencies = [
   "requests>=2.31",
   "PyYAML>=6.0",
   "Pillow>=10.0",
+  "numpy>=1.26,<3",
+  "tifffile>=2024.8.30",
+  "imagecodecs>=2024.9.22",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",

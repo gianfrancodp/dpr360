@@ -56,6 +56,10 @@ class PipelineContext:
     def final_tif(self) -> Path:
         return self.hugin_dir / "panorama_360_finale.tif"
 
+    @property
+    def fill_dir(self) -> Path:
+        return self.project_dir / "04_fill"
+
     def ensure_dirs(self) -> None:
         for p in (self.project_dir, self.metadata_dir, self.tiff_dir, self.hugin_dir):
             p.mkdir(parents=True, exist_ok=True)

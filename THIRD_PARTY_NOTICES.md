@@ -25,3 +25,9 @@ Distributed under the same terms as Perl (Artistic License and/or GNU GPL, as do
 ## Distribution policy
 
 The GitHub source repository and the DPR360 PyInstaller application build do not bundle the tools above. DPR360 discovers existing installations or assists the user in obtaining them separately. If a future release redistributes third-party binaries, the release process must include the exact upstream license texts, version/source references and any corresponding-source obligations applicable to that distribution.
+
+## Python image-processing libraries
+
+Optional color filling uses NumPy (BSD-3-Clause, https://numpy.org/doc/stable/license.html), tifffile (BSD-3-Clause, https://github.com/cgohlke/tifffile), and imagecodecs (BSD-3-Clause, https://github.com/cgohlke/imagecodecs). These are Python package dependencies and may be included in the frozen application, unlike the external executables listed above. Their permissive package licenses are compatible with this project's GPL-3.0-or-later distribution.
+
+Imagecodecs wheels include third-party codec implementations with additional notices. The application build collects the imagecodecs package data, including its `licenses/` directory; retain those bundled notices and the exact dependencies' license texts in distributed builds. Review the resolved wheels and collected notices when releasing a new dependency version. Only LZW/Deflate TIFF decoding and lossless Deflate output are used by the filling feature.

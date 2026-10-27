@@ -30,6 +30,7 @@ The validated RAW workflow targets a **33-DNG DJI Air 3 spherical panorama datas
 - Preventive PTO geometry validation before rendering.
 - Nona remapping + Enblend blending.
 - Final geometry and alpha-coverage validation as separate quality checks.
+- Optional color filling of uncovered areas, with separate master, synthetic mask and before/after previews.
 - Per-step execution, `RUN ALL`, checkpointing and `RESUME`.
 - `completed_with_warnings` state for successful commands with diagnostic warnings.
 - Weighted progress and live execution logs.
@@ -61,6 +62,8 @@ nona
 enblend (full canvas)
     ↓
 final geometry + coverage validation
+    ↓
+optional boundary-color filling → separate display copy + synthetic mask
 ```
 
 ## Windows quick start — source distribution
@@ -90,6 +93,14 @@ When a source folder contains both DNG and JPEG files, DPR360 selects DNG and ig
 
 > [!WARNING]
 > **Windows language and console encoding.** Italian UI labels are display-only and do not affect command execution on English, French, German or other Windows language editions. However, output produced by external command-line tools is decoded using the active Windows locale. On systems that use non-Western alphabets or different code pages, console and diagnostic logs may contain garbled characters or, in edge cases, decoding errors. Use a UTF-8-capable terminal and test representative Unicode paths before production processing.
+
+## Coloring uncovered areas
+
+Use **Colora i vuoti** after generating a master TIFF, or select a project with an existing master. Enable filling and choose **Gradiente morbido dai contorni** (smooth color extrapolation) or **Colore medio dei contorni di ciascun vuoto** (one sampled mean per connected empty region). Click **Crea / aggiorna copia colorata** to process the master directly; stitching is not rerun. When enabled, filling also runs as the optional last step of the pipeline.
+
+Results are written to `04_fill/`: `panorama_360_filled.tif`, `fill_mask.tif`, `fill_report.json`, and original/filled preview JPEGs. The filled TIFF preserves unsigned 8/16-bit samples and the original ICC profile, retains exact fully opaque photographed pixels, and composites partially transparent edge pixels over the extrapolated color. The original RGBA master is unchanged. White in the contribution mask means fully synthetic color; black means an unchanged opaque photograph.
+
+The display copy is opaque, but its synthetic sky/ground colors do not add photographic coverage or repair alignment. The report retains the original measured coverage separately. An explicit RGBA coverage mask is required; black image pixels are not interpreted as gaps. No cloud details or other photographic texture are invented.
 
 ## Project state
 

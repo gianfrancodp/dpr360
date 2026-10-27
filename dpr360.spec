@@ -2,6 +2,7 @@
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 streamlit_datas, streamlit_binaries, streamlit_hidden = collect_all("streamlit")
+codec_datas, codec_binaries, codec_hidden = collect_all("imagecodecs")
 
 project_datas = [
     ("app.py", "."),
@@ -13,17 +14,18 @@ project_datas = [
     (".streamlit/config.toml", ".streamlit"),
 ]
 
-hiddenimports = streamlit_hidden + collect_submodules("dpr360") + [
+hiddenimports = streamlit_hidden + codec_hidden + collect_submodules("dpr360") + [
     "yaml",
     "PIL",
     "tkinter",
+    "tifffile",
 ]
 
 a = Analysis(
     ["launcher.py"],
     pathex=[],
-    binaries=streamlit_binaries,
-    datas=streamlit_datas + project_datas,
+    binaries=streamlit_binaries + codec_binaries,
+    datas=streamlit_datas + codec_datas + project_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

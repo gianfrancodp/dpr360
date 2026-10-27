@@ -13,7 +13,16 @@ class PipelineRunner:
         self.total_weight = sum(s.weight for s in steps)
         self.state = PipelineState(ctx.project_dir, [s.name for s in steps])
         self._sync_source()
+        self._refresh_checkpoints()
         self.ui_progress_callback = None
+
+    def _refresh_checkpoints(self):
+        for step in self.steps:
+            validator = getattr(step, "checkpoint_valid", None)
+            if validator and self._is_success(self.state.status(step.name)):
+                saved = self.state.data["steps"][step.name].get("result") or {}
+                if not validator(self.ctx, saved):
+                    self.state.set_result(step.name, "pending", None)
 
     def _sync_source(self):
         ctx = self.ctx
@@ -113,6 +122,7 @@ class PipelineRunner:
 
     def run_all(self, resume=False):
         self._sync_source()
+        self._refresh_checkpoints()
         if not resume:
             self.reset()
 
@@ -160,6 +170,7 @@ class PipelineRunner:
 
     def run_step(self, name):
         self._sync_source()
+        self._refresh_checkpoints()
         return self._run_one(self.by_name[name])
 
     def reset(self):

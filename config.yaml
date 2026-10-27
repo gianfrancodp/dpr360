@@ -29,6 +29,10 @@ pipeline:
   - remap
   - blend
   - final_validation
+  - gap_fill
+gap_fill:
+  enabled: false
+  method: boundary_gradient
 tools:
   exiftool: ''
   rawtherapee: ''

@@ -1,13 +1,16 @@
 from __future__ import annotations
 from collections import deque
 from pathlib import Path
-import json, os
+import copy, json, os
 import streamlit as st
 from dpr360 import __version__
 from dpr360.logger import UsageLogger
 from dpr360.models import PipelineContext
 from dpr360.picker import choose_directory, choose_file
 from dpr360.pipeline import PipelineRunner, ALL_STEPS
+from dpr360.pipeline.steps.gap_fill import GapFillStep
+from dpr360.gap_fill import cached_report
+from dpr360.state import PipelineState
 from dpr360.scanning import discover_source_set
 from dpr360.settings import load_config, save_tool_override
 from dpr360.smoke import smoke_test
@@ -30,6 +33,13 @@ st.caption("Pano Mode → RAW → 360° · local-first RAW panorama workflow")
 
 for key,default in {"source_dir":"","project_dir":"","smoke_source":"","chat":[]}.items():
     st.session_state.setdefault(key,default)
+st.session_state.setdefault("gap_fill_enabled",cfg.get("gap_fill",{}).get("enabled",False))
+st.session_state.setdefault("gap_fill_method",cfg.get("gap_fill",{}).get("method","boundary_gradient"))
+
+def runtime_config():
+    config=copy.deepcopy(cfg)
+    config["gap_fill"]={"enabled":st.session_state.gap_fill_enabled,"method":st.session_state.gap_fill_method}
+    return config
 
 def tools_ready(tools, input_format=None):
     required=["exiftool","pto_gen","cpfind","cpclean","autooptimiser","pano_modify","nona","enblend"]
@@ -40,12 +50,12 @@ def tools_ready(tools, input_format=None):
 def make_runner():
     tools=detect_tools(ROOT,cfg)
     src=Path(st.session_state.source_dir);project=Path(st.session_state.project_dir)
-    ctx=PipelineContext(src,project,tools,cfg,logger);ctx.ensure_dirs()
+    ctx=PipelineContext(src,project,tools,runtime_config(),logger);ctx.ensure_dirs()
     return PipelineRunner(ctx,ALL_STEPS),ctx,tools
 
 def state_rows(runner):
     icons={"pending":"○","running":"▶","completed":"✓","completed_with_warnings":"⚠","failed":"✗","retry":"↻","skipped":"⏭"}
-    return [{"":"%s"%icons.get(runner.state.status(s.name),"○"),"Step":s.label,"ID":s.name,"Stato":runner.state.status(s.name),"Peso":f"{s.weight*100:.0f}%"} for s in ALL_STEPS]
+    return [{"":"%s"%icons.get(runner.state.status(s.name),"○"),"Step":s.label,"ID":s.name,"Stato":runner.state.status(s.name),"Peso":f"{s.weight/runner.total_weight*100:.0f}%"} for s in ALL_STEPS]
 
 def execute_pipeline(mode="all",single_step=None):
     if not st.session_state.source_dir or not st.session_state.project_dir:
@@ -83,7 +93,7 @@ def execute_pipeline(mode="all",single_step=None):
     st.dataframe(state_rows(runner), width="stretch", hide_index=True)
     if result.details:st.json(result.details)
 
-project_tab,pipeline_tab,tools_tab,smoke_tab,logs_tab,guide_tab,about_tab=st.tabs(["Progetto","Pipeline","Tool Windows","Smoke test","Log","Guida","About"])
+project_tab,pipeline_tab,fill_tab,tools_tab,smoke_tab,logs_tab,guide_tab,about_tab=st.tabs(["Progetto","Pipeline","Colora i vuoti","Tool Windows","Smoke test","Log","Guida","About"])
 
 with project_tab:
     st.subheader("Input e progetto")
@@ -130,6 +140,48 @@ with pipeline_tab:
         if last:
             st.markdown("#### Ultimo risultato");st.json(last)
     else:st.info("Configura prima le cartelle nella scheda Progetto.")
+
+with fill_tab:
+    st.subheader("Colora il cielo e le zone non fotografate")
+    st.write("Crea una copia opaca della sfera usando i colori vicini ai bordi dei vuoti. Il master fotografico rimane disponibile con la sua copertura originale.")
+    st.checkbox("Abilita il riempimento opzionale dopo lo stitching",key="gap_fill_enabled")
+    method_labels={"boundary_gradient":"Gradiente morbido dai contorni","boundary_mean":"Colore medio dei contorni di ciascun vuoto"}
+    st.selectbox("Metodo di riempimento",options=list(method_labels),format_func=lambda value:method_labels[value],key="gap_fill_method")
+    st.caption("Il colore aggiunto è sintetico: non ricostruisce nuvole o dettagli mancanti e non risolve eventuali errori di allineamento.")
+    if st.session_state.project_dir:
+        project=Path(st.session_state.project_dir)
+        fill_ctx=PipelineContext(Path(st.session_state.source_dir or "."),project,{},runtime_config(),logger)
+        if not fill_ctx.final_tif.is_file():
+            st.info("Genera prima il master TIFF con la pipeline.")
+        if st.button("Crea / aggiorna copia colorata",key="generate_gap_fill",type="primary",
+                     disabled=not st.session_state.gap_fill_enabled or not fill_ctx.final_tif.is_file()):
+            fill_progress=st.progress(0.0,text="Preparazione riempimento")
+            fill_ctx.progress_callback=lambda fraction,message:fill_progress.progress(fraction,text=message)
+            result=GapFillStep().run(fill_ctx)
+            if result.success:
+                state_path=project/".dpr360"/"state.json"
+                if state_path.is_file():
+                    state=PipelineState(project,[step.name for step in ALL_STEPS])
+                    if state.status("final_validation") in {"completed","completed_with_warnings"}:
+                        state.set_result("gap_fill","completed_with_warnings" if result.warnings else "completed",result.to_dict())
+                st.success(result.message)
+            else:
+                st.error(result.message)
+        try:
+            previous=json.loads((fill_ctx.fill_dir/"fill_report.json").read_text(encoding="utf-8"))
+            report=cached_report(fill_ctx.final_tif,fill_ctx.fill_dir,previous.get("method"))
+        except (OSError,ValueError,AttributeError,TypeError):
+            report=None
+        if report:
+            st.caption("Ultima copia generata: "+method_labels.get(report["method"],report["method"]))
+            st.metric("Copertura fotografica originale",f"{report['original_coverage_percent']:.3f}%")
+            before,after=st.columns(2)
+            before.image(str(fill_ctx.fill_dir/"preview_original.jpg"),caption="Master: vuoti in grigio scuro",width="stretch")
+            after.image(str(fill_ctx.fill_dir/"preview_filled.jpg"),caption="Copia con colore sintetico nei vuoti",width="stretch")
+            st.write("Copia TIFF: "+str(fill_ctx.fill_dir/"panorama_360_filled.tif"))
+            st.write("Maschera delle aree sintetiche: "+str(fill_ctx.fill_dir/"fill_mask.tif"))
+    else:
+        st.info("Seleziona la cartella progetto nella scheda Progetto; puoi usare anche un master già generato.")
 
 with tools_tab:
     st.subheader("Dipendenze Windows")

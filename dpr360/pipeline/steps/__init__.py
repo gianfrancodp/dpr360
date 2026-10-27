@@ -9,6 +9,7 @@ from .pto_validation import PtoValidationStep
 from .remap import RemapStep
 from .blend import BlendStep
 from .final_validation import FinalValidationStep
+from .gap_fill import GapFillStep
 
 ALL_STEPS = [MetadataStep(), RawConversionStep(), PtoGenStep(), CpFindStep(), CpCleanStep(), OptimiseStep(),
-             PanoramaSetupStep(), PtoValidationStep(), RemapStep(), BlendStep(), FinalValidationStep()]
+             PanoramaSetupStep(), PtoValidationStep(), RemapStep(), BlendStep(), FinalValidationStep(), GapFillStep()]

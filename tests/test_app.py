@@ -50,3 +50,27 @@ def test_jpeg_project_shows_count_and_is_ready_without_rawtherapee(tmp_path,monk
     assert metric.value=="33"
     assert metric.delta=="JPEG"
     assert any(item.value=="Toolchain pronta" for item in app.success)
+
+
+def test_existing_master_can_be_filled_without_source_or_external_tools(tmp_path,monkeypatch,caplog):
+    import hashlib
+    import numpy as np
+    import tifffile
+    import dpr360.tools
+    project=tmp_path/"project";folder=project/"03_hugin";folder.mkdir(parents=True)
+    master=folder/"panorama_360_finale.tif"
+    pixels=np.full((8,16,4),128,np.uint8);pixels[...,3]=255;pixels[:2,:,3]=0
+    tifffile.imwrite(master,pixels,photometric="rgb",extrasamples="unassalpha")
+    before=hashlib.sha256(master.read_bytes()).digest()
+    monkeypatch.setattr(dpr360.tools,"detect_tools",lambda *args:{})
+    with caplog.at_level(logging.ERROR,logger=SCRIPT_CONTEXT_LOGGER):
+        app=AppTest.from_file(APP)
+    app.session_state["project_dir"]=str(project)
+    app.session_state["gap_fill_enabled"]=True
+    app.run(timeout=30)
+    assert not app.exception
+    app.button(key="generate_gap_fill").click().run(timeout=30)
+    assert not app.exception
+    assert (project/"04_fill/panorama_360_filled.tif").exists()
+    assert (project/"04_fill/fill_mask.tif").exists()
+    assert hashlib.sha256(master.read_bytes()).digest()==before

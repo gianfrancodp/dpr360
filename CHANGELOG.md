@@ -4,6 +4,12 @@ All notable changes to DPR360 will be documented in this file.
 
 ## Unreleased
 
+### Optional boundary-color gap filling
+- Added per-hole boundary mean and smooth boundary-gradient color filling with periodic longitude and a consistent uncovered pole color.
+- Exported a separate opaque RGB TIFF, synthetic-contribution mask, report and before/after previews while retaining the original master and photographic coverage.
+- Preserved 8/16-bit TIFF samples, ICC profiles and exact fully opaque photographic pixels; used disk-backed arrays for large panoramas.
+- Added a dedicated UI tab and an optional resumable final pipeline step whose settings invalidate only the fill checkpoint.
+
 ### JPEG panorama input
 - Rebuilt photographic TIFF metadata with ExifTool to support real nested DJI EXIF without libtiff offset errors; retained exact numeric focal values.
 - Added atomic JPEG preparation, readable-output/source-identity checks, checkpoint manifest invalidation and duplicate-stem rejection.
