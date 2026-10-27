@@ -4,11 +4,13 @@ Prepared on 2026-10-26. Issue: https://github.com/gianfrancodp/dpr360/issues/25
 
 Follow-up execution and actual results: [real JPEG validation report](ISSUE_25_VALIDATION.md). This document retains the original assignment and findings; the validation report records completed checks and remaining photographic limitations.
 
+Status updated on 2026-10-27: the EXIF fix, real JPEG pipeline validation and optional [boundary-color gap filling](GAP_FILL_VALIDATION.md) are implemented. The user has authorized closing issue #25, committing and pushing this work. The original investigation below is historical context, not an outstanding implementation assignment.
+
 ## Assignment
 
 Fix and validate the existing JPEG input implementation against the supplied real dataset. Start from commit `6c24302` (`Add JPEG panorama input support`), which is already present in this checkout. Do not implement the feature again from scratch. Keep the TIFF-based downstream architecture and existing DNG development through RawTherapee.
 
-The user will decide when to close the issue. Keep it open. Repository documentation, commits, and GitHub messages must be in English. This handoff is preparation, not proof that end-to-end stitching works. No agent has been dispatched by this preparation task.
+At handoff time, the user required the issue to remain open pending testing; that restriction was superseded by the publication authorization recorded above. Repository documentation, commits, and GitHub messages must be in English. This handoff alone is not proof that end-to-end stitching works; use the subsequent validation report for execution evidence. No agent was dispatched by the preparation task.
 
 ## Local layout and confirmed dataset facts
 
@@ -130,4 +132,4 @@ These are not all demonstrated failures in this dataset. Address directly relate
 
 Deliver the fix, regression coverage, and an English local test report containing commands, versions, counts, step timings, exceptions/warnings, final dimensions, actual coverage status, and visual findings. Clearly separate tests actually run from pending checks. The previous `25 passed` result was historical synthetic-suite evidence; it did not prove real JPEG conversion.
 
-Before a commit, inspect current changes and preserve unrelated work. Follow the user's existing instruction: commit only validated work, keep issue #25 open and retain/add `To be tested` when reporting the implementation. Do not close the issue on the basis of unit tests. Push/publication is a separate action and must follow the current user's authorization. Never publish private dataset artifacts with an issue comment or commit.
+Before a commit, inspect current changes and preserve unrelated work. Commit only validated work. The original instruction to keep issue #25 open with `To be tested` has been superseded by the user's 2026-10-27 authorization to close the completed issue and publish the commits. Closure covers JPEG input support, not a claim of complete photographic coverage or repaired alignment. Never publish private dataset artifacts with an issue comment or commit.

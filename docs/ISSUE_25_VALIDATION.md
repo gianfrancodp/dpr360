@@ -72,4 +72,6 @@ Preserving working TIFF metadata resolves the JPEG preparation blocker. Command 
 
 The JPEG EXIF blocker and technical end-to-end execution are validated. The photographic result still requires review and further alignment work; geometry PASS must not be presented as complete spherical coverage or photographic acceptance.
 
-Keep issue #25 open for user testing (`To be tested`). Real DNG end-to-end behavior was not tested because no DNG dataset was supplied; synthetic regression coverage verifies the existing RawTherapee command contract.
+On 2026-10-27, the user authorized closing issue #25 and publishing the implementation. This supersedes the earlier `To be tested` hold. Closure covers JPEG input support, the EXIF preparation fix and validated technical execution; it does not certify complete photographic coverage or repair disconnected alignment.
+
+The subsequent [optional boundary-color filling](GAP_FILL_VALIDATION.md) exports a separate display copy without changing the photographic master or its measured coverage. It is not an alignment fix. Real DNG end-to-end behavior was not tested because no DNG dataset was supplied; synthetic regression coverage verifies the existing RawTherapee command contract.

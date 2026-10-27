@@ -11,6 +11,7 @@ All notable changes to DPR360 will be documented in this file.
 - Added a dedicated UI tab and an optional resumable final pipeline step whose settings invalidate only the fill checkpoint.
 
 ### JPEG panorama input
+- Completed [issue #25](https://github.com/gianfrancodp/dpr360/issues/25); real JPEG execution and remaining photographic limitations are documented in [the validation report](docs/ISSUE_25_VALIDATION.md).
 - Rebuilt photographic TIFF metadata with ExifTool to support real nested DJI EXIF without libtiff offset errors; retained exact numeric focal values.
 - Added atomic JPEG preparation, readable-output/source-identity checks, checkpoint manifest invalidation and duplicate-stem rejection.
 - Fixed smoke tests selecting stale TIFFs; added nested-EXIF, orientation, retry and real-data validation coverage.
